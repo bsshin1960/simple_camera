@@ -95,78 +95,80 @@ function fillQuestions() {
     questionsArea.innerHTML = content;
 }
 
-// 연결된 모든 비디오 장치 목록 탐색
-async function getCameraDevices() {
+// 연결된 모든 비디오 장치 목록 탐색 (이미 권한이 있는 스트림 활용)
+async function enumerateCameraDevices() {
     try {
-        // 장치 정보를 읽기 위해 임시로 권한 획득 유도
-        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        tempStream.getTracks().forEach(track => track.stop());
-        
         const devices = await navigator.mediaDevices.enumerateDevices();
-        state.cameras = devices.filter(device => device.kind === 'videoinput');
+        state.cameras = devices.filter(d => d.kind === 'videoinput' && d.deviceId);
         console.log("발견된 카메라 목록:", state.cameras);
     } catch (err) {
         console.error("카메라 장치 목록 탐색 실패:", err);
     }
 }
 
-// 카메라 스트림 시작
+// 카메라 스트림 시작 (속도 최적화)
 async function startCamera() {
-    // 1. 카메라 목록이 비어 있으면 장치를 탐색합니다.
-    if (state.cameras.length === 0) {
-        await getCameraDevices();
+    // 기존 스트림 중단
+    if (state.stream) {
+        state.stream.getTracks().forEach(track => track.stop());
+        state.stream = null;
     }
 
-    // 기본 제약 조건 설정
-    let constraints = {
-        video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-        },
-        audio: false
-    };
-
-    // 2. 검색된 카메라 목록에 따라 특정 deviceId 지정
+    // --- 1단계: 최대한 빠르게 카메라를 즉시 켜기 ---
+    // 장치 목록 탐색 없이 바로 스트림 요청 (지연 최소화)
+    let constraints;
     if (state.cameras.length > 0) {
-        const activeCamera = state.cameras[state.activeCameraIndex];
-        constraints.video.deviceId = { exact: activeCamera.deviceId };
-        console.log(`카메라 적용: ${activeCamera.label} (${activeCamera.deviceId})`);
+        // 이미 장치 목록이 있으면 해당 deviceId 직접 지정
+        const cam = state.cameras[state.activeCameraIndex];
+        constraints = {
+            video: { deviceId: { exact: cam.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false
+        };
+        console.log(`카메라 적용: ${cam.label}`);
     } else {
-        // 카메라 목록이 확인되지 않을 경우 ideal 폴백 사용
-        constraints.video.facingMode = { ideal: 'environment' };
+        // 처음 실행: 장치 목록 없이 즉시 후면 카메라(또는 기본 카메라) 요청
+        constraints = {
+            video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false
+        };
     }
 
     try {
-        // 기존 실행 중인 카메라 중단
-        if (state.stream) {
-            state.stream.getTracks().forEach(track => track.stop());
+        state.stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+        // srcObject 할당 후 즉시 play() - onloadedmetadata 이벤트 대기 없이 바로 실행
+        videoStream.srcObject = state.stream;
+        videoStream.play().catch(err => console.warn("play() 자동실행 경고 (무시 가능):", err));
+
+        // --- 2단계: 카메라가 켜진 후 백그라운드에서 장치 목록 탐색 ---
+        // 처음 실행이거나 목록이 비어 있으면 비동기로 장치 목록 갱신
+        if (state.cameras.length === 0) {
+            enumerateCameraDevices().then(() => {
+                // 탐색된 목록에서 현재 활성 스트림과 일치하는 카메라 인덱스 설정
+                const activeTrack = state.stream && state.stream.getVideoTracks()[0];
+                if (activeTrack && state.cameras.length > 0) {
+                    const settings = activeTrack.getSettings();
+                    const matchIdx = state.cameras.findIndex(c => c.deviceId === settings.deviceId);
+                    if (matchIdx >= 0) state.activeCameraIndex = matchIdx;
+                }
+            });
         }
 
-        // 스트림 획득
-        state.stream = await navigator.mediaDevices.getUserMedia(constraints);
-        videoStream.srcObject = state.stream;
-        
-        // 브라우저 캐시 및 레이팅 딜레이 방지를 위해 직접 play() 호출
-        videoStream.onloadedmetadata = () => {
-            videoStream.play()
-                .then(() => console.log("카메라 활성화 성공"))
-                .catch(err => console.error("비디오 렌더링 재생 오류:", err));
-        };
+        console.log("카메라 활성화 성공");
     } catch (err) {
-        console.error("선택된 카메라 구동 실패:", err);
-        // 권한 충돌 또는 구동 실패 시 다른 카메라로 재시도
-        if (state.cameras.length > 1) {
-            console.log("다음 사용 가능한 카메라로 폴백 시도합니다...");
-            cycleCamera();
-        } else {
-            // 다른 대안이 없을 시 완전 기본 비디오 요청
+        console.error("카메라 구동 실패:", err);
+        // 특정 deviceId 실패 시 기본 video:true 로 재시도
+        if (constraints.video.deviceId) {
+            console.log("기본 방식으로 재시도합니다...");
             try {
-                state.stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                state.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
                 videoStream.srcObject = state.stream;
-                videoStream.play().catch(e => console.error(e));
+                videoStream.play().catch(e => console.warn(e));
             } catch (fallbackErr) {
-                showNotification("웹캠/카메라에 연결할 수 없습니다. 권한 승인 상태 혹은 다른 앱에서 카메라를 사용 중인지 확인해 주세요.");
+                showNotification("카메라에 연결할 수 없습니다. 권한 설정 또는 다른 앱의 카메라 점유 여부를 확인해 주세요.");
             }
+        } else {
+            showNotification("카메라에 연결할 수 없습니다. 권한 설정 또는 다른 앱의 카메라 점유 여부를 확인해 주세요.");
         }
     }
 }
@@ -176,7 +178,7 @@ function cycleCamera() {
     if (state.cameras.length <= 1) {
         console.log("전환할 수 있는 다른 카메라 장치가 없습니다.");
         // 장치 목록을 다시 탐색해 봅니다.
-        getCameraDevices().then(() => {
+        enumerateCameraDevices().then(() => {
             if (state.cameras.length > 1) {
                 switchNextCamera();
             } else {
@@ -313,17 +315,26 @@ function setupEvents() {
 
 // 앱 초기화
 function init() {
-    fillQuestions();
-    
-    // 초기 아이콘 상태 정렬 (처음에는 중간화면이므로 확대 아이콘이 보여야 함)
+    // 초기 아이콘 상태 정렬
     iconExpand.classList.remove('hidden');
     iconCollapse.classList.add('hidden');
-    
+
+    // 카메라를 최우선으로 즉시 시작 (가장 먼저 호출)
     startCamera();
+
+    // 카메라 시작과 병렬로 나머지 초기화 수행
+    fillQuestions();
     setupEvents();
 }
 
-document.addEventListener('DOMContentLoaded', init);
+// DOMContentLoaded 대신 script가 </body> 직전에 있으므로
+// 즉시 실행 가능. DOMContentLoaded는 불필요한 대기를 추가할 수 있음.
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    // DOM이 이미 준비된 경우 즉시 실행
+    init();
+}
 
 // 서비스 워커 등록 (PWA 설치 및 오프라인 지원)
 if ('serviceWorker' in navigator) {
