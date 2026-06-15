@@ -1,8 +1,9 @@
-# 📱 휴대폰 카메라 제어 프로그램 개발 계획 및 도움말 (Plan & Help)
+# 📱 심플 카메라 제어기 - 개발 계획 및 도움말 (Plan & Help)
 
 이 문서는 **스텔스 UI 및 비율 자동 전환이 적용된 휴대폰 카메라 제어 웹 프로그램**의 전체 개발 이력 및 도움말입니다.
 
-GitHub: https://github.com/bsshin1960/simple_camera.git
+- **GitHub 저장소**: https://github.com/bsshin1960/simple_camera.git
+- **영구 접속 주소 (GitHub Pages)**: https://bsshin1960.github.io/simple_camera/
 
 ---
 
@@ -13,9 +14,10 @@ GitHub: https://github.com/bsshin1960/simple_camera.git
 - **PWA (Progressive Web App)** 모바일 설치 지원
 - **Service Worker** 기반 오프라인 캐싱 (`sw.js`)
 - **manifest.json** 홈 화면 추가 지원
+- **GitHub Pages** 영구 호스팅 (HTTPS 자동 제공)
 
 ### 디자인 콘셉트
-- 불필요한 고정 메뉴들을 배제하고, 배경에는 **은은한 화이트 톤의 문제 텍스트(투명도 15%)** 배치
+- 배경에 **은은한 화이트 톤의 문제 텍스트(투명도 15%)** 배치
 - 마우스 커서가 화면에 진입하거나 모바일에서 탭하면 조작 버튼과 줌 슬라이더가 반투명하게 나타남
 - **마우스가 화면 밖으로 나가면** 배경 텍스트, 스크롤바, 컨트롤 모두 투명하게 사라져 카메라 영상만 보임
 
@@ -26,11 +28,13 @@ GitHub: https://github.com/bsshin1960/simple_camera.git
 ### v1.0 – 웹 브라우저 기반 초기 버전
 - HTML + CSS + JS로 기본 카메라 제어 웹 페이지 구현
 - PC 브라우저에서 웹캠 스트리밍 정상 작동 확인
+- 문제점: 브라우저에서 보안 승인 팝업, 불필요한 주소창 UI 등이 노출됨
 
 ### v2.0 – PWA 모바일 앱 전환
-- 웹 브라우저에서 발생하는 보안 승인 팝업과 불필요한 UI 요소 문제로 **PWA 앱으로 전환**
-- `manifest.json` + `sw.js` (Service Worker) 추가하여 홈 화면에 앱 아이콘으로 설치 가능
+- 웹 브라우저 보안 승인 팝업과 불필요한 UI 요소 문제로 **PWA 앱으로 전환**
+- `manifest.json` + `sw.js` (Service Worker) 추가 → 홈 화면에 앱 아이콘으로 설치 가능
 - 모바일에서 아이콘 탭으로 실행하면 브라우저 주소창 없이 전체 화면 앱처럼 동작
+- localhost.run SSH 터널을 통해 HTTPS 외부 접속 URL 제공
 
 ### v2.1 – 세로/가로 모드 비율 자동 전환
 - **세로 모드**: 카메라 화면이 `9:16` 비율로 표시 (화면 높이 기준으로 꽉 차게)
@@ -45,12 +49,37 @@ GitHub: https://github.com/bsshin1960/simple_camera.git
   - 스크롤바도 함께 숨김 → 카메라 영상만 깔끔하게 전체 화면으로 보임
 - CSS `opacity` 트랜지션으로 부드럽게 사라지는 효과 적용
 
-### v2.3 – 스크롤바 완전 제거 및 비율 개선 (최신)
-- `* { scrollbar-width: none; }` + `*::-webkit-scrollbar { display: none; }` 로 **모든 스크롤바 완전 숨김**
+### v2.3 – 스크롤바 완전 제거 및 화면 비율 개선
+- `* { scrollbar-width: none; }` + `*::-webkit-scrollbar { display: none; }` 으로 **모든 스크롤바 완전 숨김**
 - 세로 모드: 고정 픽셀 대신 **`height: calc(100dvh - 120px)` + `aspect-ratio: 9/16`** 으로 화면에 꽉 차게
 - 가로 모드: **`height: calc(100dvh - 100px)` + `aspect-ratio: 16/9`** 으로 화면 높이 기준 자동 계산
 - HTML에 **캐시 방지 메타 태그** 추가 (`Cache-Control: no-cache`)
-- CSS, JS 파일에 **버전 파라미터** 추가 (`style.css?v=20260615b`, `app.js?v=20260615b`)
+- CSS, JS 파일에 **버전 파라미터** 추가 (`style.css?v=20260615c`, `app.js?v=20260615c`)
+
+### v2.4 – 카메라 시작 속도 최적화 (최신)
+- **기존 문제**: 임시 스트림을 열었다 닫고 장치 목록 탐색이 끝날 때까지 기다린 후에야 실제 카메라를 켜는 직렬 처리 방식
+- **개선 내용**:
+  1. **임시 스트림 완전 제거** - 권한 획득을 위해 카메라를 켰다 끄는 이중 작업 삭제
+  2. **카메라 즉시 시작** - 장치 목록 탐색 없이 `facingMode: environment` 로 바로 스트림 요청
+  3. **장치 목록 병렬 탐색** - 카메라가 켜진 후 백그라운드에서 비동기로 장치 목록 갱신
+  4. **`play()` 즉시 호출** - `onloadedmetadata` 이벤트 대기 없이 `srcObject` 할당 즉시 `play()` 실행
+  5. **DOM 준비 즉시 실행** - `document.readyState` 확인으로 불필요한 이벤트 대기 최소화
+
+```
+기존 흐름 (느림):
+임시 스트림 열기 → 닫기 → 장치 탐색 완료 대기 → 스트림 시작 → metadata 이벤트 대기 → play()
+
+개선 후 흐름 (빠름):
+스트림 즉시 요청 → srcObject 할당 → play() 즉시 실행
+                                          ↓ (동시에 백그라운드에서)
+                              장치 목록 탐색 (비동기, 병렬)
+```
+
+### v2.5 – GitHub Pages 영구 호스팅 배포
+- localhost.run 무료 터널의 한계(URL이 매번 변경, PC 꺼지면 접속 불가) 해결
+- **GitHub Pages** 로 영구 HTTPS 호스팅 설정
+- 영구 접속 주소: **https://bsshin1960.github.io/simple_camera/**
+- PC가 꺼져 있어도 언제든 접속 가능, URL 변경 없음
 
 ---
 
@@ -58,25 +87,47 @@ GitHub: https://github.com/bsshin1960/simple_camera.git
 
 ```
 camera/
-├── index.html      # 앱 메인 페이지 (PWA 메타 태그, 캐시 방지 헤더 포함)
-├── style.css       # 전체 스타일시트 (스텔스 UI, 비율 자동 전환, 스크롤바 숨김)
-├── app.js          # 카메라 제어 로직 (스트리밍, 줌, 기기 전환, 스텔스 제어)
-├── manifest.json   # PWA 앱 매니페스트 (홈 화면 설치 지원)
-├── sw.js           # Service Worker (오프라인 캐싱)
-├── icon.png        # 앱 아이콘 이미지
-└── Plan & Help.md  # 개발 계획 및 도움말 (이 파일)
+├── index.html       # 앱 메인 페이지 (PWA 메타 태그, 캐시 방지 헤더 포함)
+├── style.css        # 전체 스타일시트 (스텔스 UI, 비율 자동 전환, 스크롤바 숨김)
+├── app.js           # 카메라 제어 로직 (빠른 시작, 줌, 기기 전환, 스텔스 제어)
+├── manifest.json    # PWA 앱 매니페스트 (홈 화면 설치 지원)
+├── sw.js            # Service Worker (오프라인 캐싱)
+├── icon.png         # 앱 아이콘 이미지
+└── Plan & Help.md   # 개발 계획 및 도움말 (이 파일)
 ```
 
 ---
 
-## 4. 프로그램 조작 설명서 (Manual)
+## 4. 접속 방법 (Access Guide)
 
-### 4.1 설치 방법 (모바일 홈 화면에 추가)
-1. 크롬(Android) 또는 사파리(iOS)에서 앱 URL에 접속
-2. 브라우저 메뉴(⋮ 또는 공유 아이콘) → **"홈 화면에 추가"** 선택
+### 4.1 GitHub Pages (영구 주소 - 권장)
+| 항목 | 내용 |
+|------|------|
+| **URL** | https://bsshin1960.github.io/simple_camera/ |
+| **특징** | PC 꺼져도 접속 가능, URL 고정, HTTPS 자동 |
+| **업데이트** | `git push` 하면 1~2분 후 자동 반영 |
+
+### 4.2 로컬 서버 + SSH 터널 (개발/테스트용)
+```powershell
+# 1. 로컬 HTTP 서버 시작
+python -m http.server 8000 --directory c:\Temp\Antigrvity\camera
+
+# 2. SSH 터널로 외부 접속 URL 생성
+ssh -o StrictHostKeyChecking=no -R 80:localhost:8000 nokey@localhost.run
+```
+- 생성된 `https://xxxxx.lhr.life` 형태의 URL을 휴대폰에서 접속
+- ⚠️ PC가 꺼지거나 연결 끊기면 URL이 바뀜 (임시용)
+
+### 4.3 모바일 홈 화면에 앱 설치
+1. 크롬(Android) 또는 사파리(iOS)에서 GitHub Pages URL 접속
+2. 브라우저 메뉴(`⋮` 또는 공유 아이콘) → **"홈 화면에 추가"** 선택
 3. 이후 홈 화면 아이콘으로 실행하면 브라우저 주소창 없이 앱처럼 동작
 
-### 4.2 화면 구성 및 조작부 노출
+---
+
+## 5. 프로그램 조작 설명서 (Manual)
+
+### 5.1 화면 구성 및 조작부 노출
 - **스텔스 상태**: 카메라 영상만 표시, 제어 단추 가려짐
 - **조작부 나타내기**:
   - PC: 마우스 커서를 화면 안으로 이동
@@ -86,11 +137,11 @@ camera/
   - `카메라 전환` 버튼: 전/후면 카메라, PC 웹캠 순환 전환
   - `화면 전환` 버튼: 중간화면 모드(9:16/16:9) ↔ 전체화면 모드 전환
 
-### 4.3 자동 감추기
+### 5.2 자동 감추기
 - PC: 마우스 커서가 화면 밖으로 나가면 즉시 사라짐
 - 모바일: 마지막 터치 후 **2.5초** 경과 시 서서히 사라짐
 
-### 4.4 화면 비율
+### 5.3 화면 비율
 | 모드 | 비율 | 기준 |
 |------|------|------|
 | 세로 모드 (Portrait) | **9:16** | 화면 높이(dvh) 기준 자동 계산 |
@@ -99,7 +150,7 @@ camera/
 
 ---
 
-## 5. 도움말 (Help) / FAQ
+## 6. 도움말 (Help) / FAQ
 
 ### Q1. 화면이 검게 나와요 (카메라 영상이 안 보임)
 **원인**: PC에 OBS Virtual Camera 등 가상 카메라 드라이버가 기본으로 잡힌 경우
@@ -109,27 +160,31 @@ camera/
 2. **카메라 전환 버튼**을 여러 번 클릭하여 실제 카메라 선택
 3. 그래도 안 되면 브라우저 설정에서 카메라 권한 확인
 
-### Q2. 화면 비율이 9:16이 아닌 것 같아요
+### Q2. GitHub Pages에서 카메라가 작동하지 않아요
+**원인**: 카메라는 반드시 HTTPS에서만 작동합니다.
+
+**확인 사항**:
+- GitHub Pages는 HTTPS가 자동으로 제공되므로 정상 작동해야 합니다
+- 주소가 `https://`로 시작하는지 확인
+
+### Q3. GitHub Pages 업데이트가 앱에 바로 반영되지 않아요
+**대처법**: GitHub Pages는 `git push` 후 1~2분 후에 반영됩니다.
+1. 앱 실행 후 **새로고침** 2~3번 시도
+2. 또는 **시크릿 모드(인코그니토)** 로 접속하면 캐시 없이 최신 버전 로드
+
+### Q4. 홈 화면 앱(PWA)이 업데이트가 안 돼요
+**대처법**: Service Worker가 이전 파일을 캐싱하고 있을 수 있습니다.
+1. 앱 실행 후 **새로고침을 2~3번** 반복
+2. 그래도 안 되면 앱 삭제 후 다시 "홈 화면에 추가"로 재설치
+
+### Q5. 화면 비율이 9:16이 아닌 것 같아요
 **대처법**: 캐시 문제일 수 있습니다.
-1. **시크릿 모드(인코그니토)** 로 접속 시도
-2. 크롬 주소창에 `chrome://settings/clearBrowserData` 입력 → 캐시 삭제 후 재접속
-
-### Q3. 설치한 앱(홈 화면 아이콘)이 업데이트가 안 돼요
-**대처법**: PWA는 Service Worker가 캐시를 관리합니다.
-1. 앱 실행 후 브라우저 내 **새로고침** 2~3번 시도
-2. 또는 앱을 삭제 후 다시 "홈 화면에 추가"로 재설치
-
-### Q4. 모바일에서 터널 URL로 접속하는 방법
-- localhost.run SSH 터널을 사용하여 외부에서 접속 가능한 임시 URL 생성
-- PC에서 아래 명령 실행:
-  ```
-  ssh -o StrictHostKeyChecking=no -R 80:localhost:8000 nokey@localhost.run
-  ```
-- 생성된 `https://xxxxx.lhr.life` 형태의 URL을 휴대폰에서 접속
+- **시크릿 모드(인코그니토)** 로 접속 시도
+- 크롬 주소창에 `chrome://settings/clearBrowserData` → 캐시 삭제 후 재접속
 
 ---
 
-## 6. 기술 메모 (Technical Notes)
+## 7. 기술 메모 (Technical Notes)
 
 ### CSS 핵심 구조
 ```css
@@ -150,10 +205,36 @@ camera/
 }
 
 /* 스크롤바 완전 숨김 */
-* { scrollbar-width: none; }
+* { scrollbar-width: none; -ms-overflow-style: none; }
 *::-webkit-scrollbar { display: none; }
 ```
 
-### PWA 서비스워커 캐시 전략
-- 설치 시 핵심 파일(`index.html`, `style.css`, `app.js`, `manifest.json`, `icon.png`) 사전 캐싱
-- 네트워크 우선(Network First) 전략으로 항상 최신 버전 우선 시도
+### JS 카메라 빠른 시작 구조
+```javascript
+async function startCamera() {
+    // 장치 목록 탐색 없이 즉시 스트림 요청
+    const constraints = {
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+    };
+    state.stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+    // 이벤트 대기 없이 즉시 play()
+    videoStream.srcObject = state.stream;
+    videoStream.play();
+
+    // 백그라운드에서 장치 목록 갱신 (병렬)
+    enumerateCameraDevices();
+}
+```
+
+### GitHub Pages 배포
+- 저장소: https://github.com/bsshin1960/simple_camera
+- 배포 브랜치: `master` (루트 폴더)
+- 영구 URL: https://bsshin1960.github.io/simple_camera/
+- 업데이트 방법:
+  ```
+  git add .
+  git commit -m "업데이트 내용"
+  git push origin master
+  ```
