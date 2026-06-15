@@ -1,0 +1,16 @@
+{
+  "name": "심플 카메라 제어기",
+  "short_name": "카메라",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#050709",
+  "theme_color": "#050709",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
