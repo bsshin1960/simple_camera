@@ -2,6 +2,8 @@
 const state = {
     stream: null,
     zoom: 1.0,
+    rotation: 0,          // 회전 각도 (0, 90, 180, 270)
+    brightness: 2.25,     // 기본 밝기 배율 (2.25x - 기존 1.5x 대비 50% 향상)
     isFullScreen: false,
     controlsTimer: null,
     cameras: [],          // 탐색된 카메라 기기 목록
@@ -63,10 +65,10 @@ const cameraBox = document.getElementById('camera-box');
 const questionsArea = document.getElementById('questions-area');
 const zoomSlider = document.getElementById('zoom-slider');
 const zoomBadge = document.getElementById('zoom-badge');
-
 // 컨트롤 버튼 & 아이콘
 const btnToggleScreen = document.getElementById('btn-toggle-screen');
 const btnSwitchCamera = document.getElementById('btn-switch-camera');
+const btnRotateCamera = document.getElementById('btn-rotate-camera');
 const iconCollapse = document.getElementById('icon-collapse');
 const iconExpand = document.getElementById('icon-expand');
 
@@ -121,20 +123,62 @@ async function startCamera() {
         // 이미 장치 목록이 있으면 해당 deviceId 직접 지정
         const cam = state.cameras[state.activeCameraIndex];
         constraints = {
-            video: { deviceId: { exact: cam.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
+            video: { deviceId: { exact: cam.deviceId }, width: { ideal: 3840 }, height: { ideal: 2160 } },
             audio: false
         };
         console.log(`카메라 적용: ${cam.label}`);
     } else {
         // 처음 실행: 장치 목록 없이 즉시 후면 카메라(또는 기본 카메라) 요청
         constraints = {
-            video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+            video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 } },
             audio: false
         };
     }
 
     try {
         state.stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+        // 밝기 필터 즉각 보정 실행 (기본 1.50배)
+        applyBrightness();
+
+        // 가로 화면인데 비디오 스트림이 세로로 왜곡되어 들어오는 경우 자동 90도 회전 설정
+        const activeTrack = state.stream.getVideoTracks()[0];
+        if (activeTrack) {
+            // 하드웨어 최고 해상도 적용 시도
+            if (typeof activeTrack.getCapabilities === 'function') {
+                const capabilities = activeTrack.getCapabilities();
+                const constraintsToApply = {};
+                if (capabilities.width && capabilities.width.max) {
+                    constraintsToApply.width = capabilities.width.max;
+                }
+                if (capabilities.height && capabilities.height.max) {
+                    constraintsToApply.height = capabilities.height.max;
+                }
+                if (Object.keys(constraintsToApply).length > 0) {
+                    console.log("기기 최고 해상도 적용 시도:", constraintsToApply);
+                    activeTrack.applyConstraints(constraintsToApply)
+                        .then(() => {
+                            console.log("최고 해상도 적용 완료:", activeTrack.getSettings());
+                            applyRotationAndZoom();
+                        })
+                        .catch(e => {
+                            console.warn("최고 해상도 적용 실패:", e);
+                            applyRotationAndZoom();
+                        });
+                } else {
+                    applyRotationAndZoom();
+                }
+            } else {
+                applyRotationAndZoom();
+            }
+
+            const settings = activeTrack.getSettings();
+            if (window.innerWidth > window.innerHeight && settings.width < settings.height) {
+                state.rotation = 90;
+            } else {
+                state.rotation = 0;
+            }
+        }
 
         // srcObject 할당 후 즉시 play() - onloadedmetadata 이벤트 대기 없이 바로 실행
         videoStream.srcObject = state.stream;
@@ -161,7 +205,48 @@ async function startCamera() {
         if (constraints.video.deviceId) {
             console.log("기본 방식으로 재시도합니다...");
             try {
-                state.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                state.stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: { ideal: 3840 }, height: { ideal: 2160 } }, 
+                    audio: false 
+                });
+                
+                // 밝기 필터 즉각 보정 실행
+                applyBrightness();
+
+                const activeTrack = state.stream.getVideoTracks()[0];
+                if (activeTrack) {
+                    // 하드웨어 최고 해상도 적용 시도
+                    if (typeof activeTrack.getCapabilities === 'function') {
+                        const capabilities = activeTrack.getCapabilities();
+                        const constraintsToApply = {};
+                        if (capabilities.width && capabilities.width.max) {
+                            constraintsToApply.width = capabilities.width.max;
+                        }
+                        if (capabilities.height && capabilities.height.max) {
+                            constraintsToApply.height = capabilities.height.max;
+                        }
+                        if (Object.keys(constraintsToApply).length > 0) {
+                            activeTrack.applyConstraints(constraintsToApply)
+                                .then(() => applyRotationAndZoom())
+                                .catch(e => {
+                                    console.warn(e);
+                                    applyRotationAndZoom();
+                                });
+                        } else {
+                            applyRotationAndZoom();
+                        }
+                    } else {
+                        applyRotationAndZoom();
+                    }
+
+                    const settings = activeTrack.getSettings();
+                    if (window.innerWidth > window.innerHeight && settings.width < settings.height) {
+                        state.rotation = 90;
+                    } else {
+                        state.rotation = 0;
+                    }
+                }
+
                 videoStream.srcObject = state.stream;
                 videoStream.play().catch(e => console.warn(e));
             } catch (fallbackErr) {
@@ -196,11 +281,39 @@ function switchNextCamera() {
     showControlsTemporarily();
 }
 
+// 밝기 효과 적용 (contrast는 1.05로 기본 조율하고 brightness만 연계)
+function applyBrightness() {
+    videoStream.style.filter = `brightness(${state.brightness}) contrast(1.05)`;
+}
+
+
+// 회전 및 줌 효과 적용
+function applyRotationAndZoom() {
+    let transformStr = `scale(${state.zoom})`;
+    
+    if (state.rotation === 90 || state.rotation === 270) {
+        // 비디오 박스 비율에 따른 자동 스케일링 계산 (여백 방지)
+        const rect = cameraBox.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+            const scaleFactor = Math.max(rect.width / rect.height, rect.height / rect.width);
+            transformStr = `scale(${state.zoom * scaleFactor}) rotate(${state.rotation}deg)`;
+        } else {
+            transformStr = `scale(${state.zoom * 1.78}) rotate(${state.rotation}deg)`;
+        }
+    } else if (state.rotation === 180) {
+        transformStr = `scale(${state.zoom}) rotate(180deg)`;
+    }
+    
+    videoStream.style.transform = transformStr;
+}
+
 // 줌(확대/축소) 효과 적용
 function applyZoom(val) {
     state.zoom = parseFloat(val);
-    videoStream.style.transform = `scale(${state.zoom})`;
-    zoomBadge.textContent = `${state.zoom.toFixed(1)}x`;
+    applyRotationAndZoom();
+    if (zoomBadge) {
+        zoomBadge.textContent = `${state.zoom.toFixed(1)}x`;
+    }
 
     // 하드웨어 카메라 줌 시도
     if (state.stream) {
@@ -217,6 +330,13 @@ function applyZoom(val) {
             }
         }
     }
+}
+
+// 화면 회전 조절
+function cycleRotation() {
+    state.rotation = (state.rotation + 90) % 360;
+    applyRotationAndZoom();
+    showControlsTemporarily();
 }
 
 // 화면 모드 토글 (최대화면 <-> 중간화면)
@@ -243,12 +363,15 @@ function toggleScreenMode() {
         iconCollapse.classList.add('hidden');
     }
     
+    setTimeout(applyRotationAndZoom, 50);
     showControlsTemporarily();
 }
 
 // 컨트롤러(반투명 인터페이스) 일시 표출 및 자동 페이드아웃 기능
 function showControlsTemporarily() {
-    appContainer.classList.add('show-controls');
+    if (appContainer) {
+        appContainer.classList.add('show-controls');
+    }
     
     // 기존 타이머 클리어
     if (state.controlsTimer) {
@@ -257,8 +380,9 @@ function showControlsTemporarily() {
     
     // 2.5초간 움직임이 없으면 자동으로 컨트롤 숨김
     state.controlsTimer = setTimeout(() => {
-        // 줌 슬라이더를 잡고 드래그하는 중에는 감추지 않음
-        if (document.activeElement !== zoomSlider) {
+        // 슬라이더를 잡고 드래그하는 중에는 감추지 않음
+        const isDragging = (zoomSlider && document.activeElement === zoomSlider);
+        if (!isDragging && appContainer) {
             appContainer.classList.remove('show-controls');
         }
     }, 2500);
@@ -267,49 +391,75 @@ function showControlsTemporarily() {
 // 이벤트 리스너 설정
 function setupEvents() {
     // 1. 화면 크기 토글 버튼 클릭
-    btnToggleScreen.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleScreenMode();
-    });
+    if (btnToggleScreen) {
+        btnToggleScreen.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleScreenMode();
+        });
+    }
 
     // 2. 카메라 기기 전환 버튼 클릭
-    btnSwitchCamera.addEventListener('click', (e) => {
-        e.stopPropagation();
-        cycleCamera();
-    });
+    if (btnSwitchCamera) {
+        btnSwitchCamera.addEventListener('click', (e) => {
+            e.stopPropagation();
+            cycleCamera();
+        });
+    }
+
+    // 2.5 화면 회전 버튼 클릭
+    if (btnRotateCamera) {
+        btnRotateCamera.addEventListener('click', (e) => {
+            e.stopPropagation();
+            cycleRotation();
+        });
+    }
 
     // 3. 줌 슬라이더 입력 연동
-    zoomSlider.addEventListener('input', (e) => {
-        applyZoom(e.target.value);
-        showControlsTemporarily();
-    });
+    if (zoomSlider) {
+        zoomSlider.addEventListener('input', (e) => {
+            applyZoom(e.target.value);
+            showControlsTemporarily();
+        });
+    }
+
 
     // 4. 커서/터치 반응형 제어
-    appContainer.addEventListener('mousemove', () => {
-        showControlsTemporarily();
-    });
+    if (appContainer) {
+        appContainer.addEventListener('mousemove', () => {
+            showControlsTemporarily();
+        });
 
-    appContainer.addEventListener('mouseleave', () => {
-        if (state.controlsTimer) {
-            clearTimeout(state.controlsTimer);
-        }
-        appContainer.classList.remove('show-controls');
-    });
+        appContainer.addEventListener('mouseleave', () => {
+            if (state.controlsTimer) {
+                clearTimeout(state.controlsTimer);
+            }
+            appContainer.classList.remove('show-controls');
+        });
 
-    appContainer.addEventListener('touchstart', () => {
-        showControlsTemporarily();
-    }, { passive: true });
+        appContainer.addEventListener('touchstart', () => {
+            showControlsTemporarily();
+        }, { passive: true });
 
-    appContainer.addEventListener('touchmove', () => {
-        showControlsTemporarily();
-    }, { passive: true });
+        appContainer.addEventListener('touchmove', () => {
+            showControlsTemporarily();
+        }, { passive: true });
 
-    // 더블 탭/클릭 시 화면 모드 토글 지원
-    appContainer.addEventListener('dblclick', (e) => {
-        // 버튼 및 슬라이더 영역 제외 클릭 시 작동
-        if (e.target !== zoomSlider && !btnToggleScreen.contains(e.target) && !btnSwitchCamera.contains(e.target)) {
-            toggleScreenMode();
-        }
+        // 더블 탭/클릭 시 화면 모드 토글 지원
+        appContainer.addEventListener('dblclick', (e) => {
+            // 버튼 및 슬라이더 영역 제외 클릭 시 작동
+            const isSlider = e.target === zoomSlider;
+            const isButton = (btnToggleScreen && btnToggleScreen.contains(e.target)) || 
+                             (btnSwitchCamera && btnSwitchCamera.contains(e.target)) || 
+                             (btnRotateCamera && btnRotateCamera.contains(e.target));
+            if (!isSlider && !isButton) {
+                toggleScreenMode();
+            }
+        });
+    }
+
+    // 창 크기 변경 시 회전 비율 동적 재정렬
+    window.addEventListener('resize', () => {
+        applyRotationAndZoom();
     });
 }
 
