@@ -144,7 +144,7 @@ async function startCamera() {
         // 가로 화면인데 비디오 스트림이 세로로 왜곡되어 들어오는 경우 자동 90도 회전 설정
         const activeTrack = state.stream.getVideoTracks()[0];
         if (activeTrack) {
-            // 1. 회전 값 결정 (저장된 값 우선, 없으면 가로 모드 기본 90도 또는 세로 해상도 대응)
+            // 회전 값 결정 (저장된 값 우선, 없으면 가로 모드 기본 90도 또는 세로 해상도 대응)
             const trackLabel = activeTrack.label || 'default';
             const savedRotation = localStorage.getItem(`rotation_${trackLabel}`);
             if (savedRotation !== null) {
@@ -160,34 +160,7 @@ async function startCamera() {
                     state.rotation = 0;
                 }
             }
-
-            // 2. 하드웨어 최고 해상도 적용 시도
-            if (typeof activeTrack.getCapabilities === 'function') {
-                const capabilities = activeTrack.getCapabilities();
-                const constraintsToApply = {};
-                if (capabilities.width && capabilities.width.max) {
-                    constraintsToApply.width = capabilities.width.max;
-                }
-                if (capabilities.height && capabilities.height.max) {
-                    constraintsToApply.height = capabilities.height.max;
-                }
-                if (Object.keys(constraintsToApply).length > 0) {
-                    console.log("기기 최고 해상도 적용 시도:", constraintsToApply);
-                    activeTrack.applyConstraints(constraintsToApply)
-                        .then(() => {
-                            console.log("최고 해상도 적용 완료:", activeTrack.getSettings());
-                            applyRotationAndZoom();
-                        })
-                        .catch(e => {
-                            console.warn("최고 해상도 적용 실패:", e);
-                            applyRotationAndZoom();
-                        });
-                } else {
-                    applyRotationAndZoom();
-                }
-            } else {
-                applyRotationAndZoom();
-            }
+            applyRotationAndZoom();
         }
 
         // srcObject 할당 후 즉시 play() - onloadedmetadata 이벤트 대기 없이 바로 실행
@@ -239,30 +212,7 @@ async function startCamera() {
                             state.rotation = 0;
                         }
                     }
-
-                    // 하드웨어 최고 해상도 적용 시도
-                    if (typeof activeTrack.getCapabilities === 'function') {
-                        const capabilities = activeTrack.getCapabilities();
-                        const constraintsToApply = {};
-                        if (capabilities.width && capabilities.width.max) {
-                            constraintsToApply.width = capabilities.width.max;
-                        }
-                        if (capabilities.height && capabilities.height.max) {
-                            constraintsToApply.height = capabilities.height.max;
-                        }
-                        if (Object.keys(constraintsToApply).length > 0) {
-                            activeTrack.applyConstraints(constraintsToApply)
-                                .then(() => applyRotationAndZoom())
-                                .catch(e => {
-                                    console.warn(e);
-                                    applyRotationAndZoom();
-                                });
-                        } else {
-                            applyRotationAndZoom();
-                        }
-                    } else {
-                        applyRotationAndZoom();
-                    }
+                    applyRotationAndZoom();
                 }
 
                 videoStream.srcObject = state.stream;
