@@ -3,7 +3,7 @@ const state = {
     stream: null,
     zoom: 1.0,
     rotation: 0,          // 회전 각도 (0, 90, 180, 270)
-    brightness: 2.25,     // 기본 밝기 배율 (2.25x - 기존 1.5x 대비 50% 향상)
+    brightness: 1.8,      // 기본 밝기 배율 (1.8x - 기존 2.25x 대비 20% 감소)
     isFullScreen: false,
     controlsTimer: null,
     cameras: [],          // 탐색된 카메라 기기 목록
@@ -144,7 +144,24 @@ async function startCamera() {
         // 가로 화면인데 비디오 스트림이 세로로 왜곡되어 들어오는 경우 자동 90도 회전 설정
         const activeTrack = state.stream.getVideoTracks()[0];
         if (activeTrack) {
-            // 하드웨어 최고 해상도 적용 시도
+            // 1. 회전 값 결정 (저장된 값 우선, 없으면 가로 모드 기본 90도 또는 세로 해상도 대응)
+            const trackLabel = activeTrack.label || 'default';
+            const savedRotation = localStorage.getItem(`rotation_${trackLabel}`);
+            if (savedRotation !== null) {
+                state.rotation = parseInt(savedRotation, 10);
+            } else {
+                const settings = activeTrack.getSettings();
+                if (window.innerWidth > window.innerHeight) {
+                    // 가로 화면인데 물체가 세로로 누워 보이는 문제 해결을 위해 기본 회전 각도를 90도로 자동 보정
+                    state.rotation = 90;
+                } else if (settings.width < settings.height) {
+                    state.rotation = 90;
+                } else {
+                    state.rotation = 0;
+                }
+            }
+
+            // 2. 하드웨어 최고 해상도 적용 시도
             if (typeof activeTrack.getCapabilities === 'function') {
                 const capabilities = activeTrack.getCapabilities();
                 const constraintsToApply = {};
@@ -170,13 +187,6 @@ async function startCamera() {
                 }
             } else {
                 applyRotationAndZoom();
-            }
-
-            const settings = activeTrack.getSettings();
-            if (window.innerWidth > window.innerHeight && settings.width < settings.height) {
-                state.rotation = 90;
-            } else {
-                state.rotation = 0;
             }
         }
 
@@ -215,6 +225,21 @@ async function startCamera() {
 
                 const activeTrack = state.stream.getVideoTracks()[0];
                 if (activeTrack) {
+                    const trackLabel = activeTrack.label || 'default';
+                    const savedRotation = localStorage.getItem(`rotation_${trackLabel}`);
+                    if (savedRotation !== null) {
+                        state.rotation = parseInt(savedRotation, 10);
+                    } else {
+                        const settings = activeTrack.getSettings();
+                        if (window.innerWidth > window.innerHeight) {
+                            state.rotation = 90;
+                        } else if (settings.width < settings.height) {
+                            state.rotation = 90;
+                        } else {
+                            state.rotation = 0;
+                        }
+                    }
+
                     // 하드웨어 최고 해상도 적용 시도
                     if (typeof activeTrack.getCapabilities === 'function') {
                         const capabilities = activeTrack.getCapabilities();
@@ -237,13 +262,6 @@ async function startCamera() {
                         }
                     } else {
                         applyRotationAndZoom();
-                    }
-
-                    const settings = activeTrack.getSettings();
-                    if (window.innerWidth > window.innerHeight && settings.width < settings.height) {
-                        state.rotation = 90;
-                    } else {
-                        state.rotation = 0;
                     }
                 }
 
@@ -335,6 +353,17 @@ function applyZoom(val) {
 // 화면 회전 조절
 function cycleRotation() {
     state.rotation = (state.rotation + 90) % 360;
+    
+    // 사용자가 직접 회전한 상태를 localStorage에 저장하여 다음 진입 시 유지
+    if (state.stream) {
+        const activeTrack = state.stream.getVideoTracks()[0];
+        if (activeTrack) {
+            const trackLabel = activeTrack.label || 'default';
+            localStorage.setItem(`rotation_${trackLabel}`, state.rotation);
+            console.log(`회전 각도 저장 완료 (${trackLabel}): ${state.rotation}도`);
+        }
+    }
+    
     applyRotationAndZoom();
     showControlsTemporarily();
 }
