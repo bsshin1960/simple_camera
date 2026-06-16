@@ -1,4 +1,4 @@
-const CACHE_NAME = 'camera-app-v14'; // 버전을 v14으로 올려 이전 캐시 갱신 유도
+const CACHE_NAME = 'camera-app-v15'; // 버전을 v15으로 올려 이전 캐시 갱신 유도
 const ASSETS = [
     './',
     './index.html',

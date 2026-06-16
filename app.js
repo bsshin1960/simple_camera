@@ -109,6 +109,7 @@ async function enumerateCameraDevices() {
 }
 
 // 카메라 스트림 시작 (속도 최적화)
+// 카메라 스트림 시작 (속도 최적화)
 async function startCamera() {
     // 기존 스트림 중단
     if (state.stream) {
@@ -116,114 +117,111 @@ async function startCamera() {
         state.stream = null;
     }
 
-    // --- 1단계: 최대한 빠르게 카메라를 즉시 켜기 ---
-    // 장치 목록 탐색 없이 바로 스트림 요청 (지연 최소화)
-    let constraints;
+    let activeCam = null;
     if (state.cameras.length > 0) {
-        // 이미 장치 목록이 있으면 해당 deviceId 직접 지정
-        const cam = state.cameras[state.activeCameraIndex];
-        constraints = {
-            video: { deviceId: { exact: cam.deviceId }, width: { ideal: 3840 }, height: { ideal: 2160 } },
-            audio: false
-        };
-        console.log(`카메라 적용: ${cam.label}`);
-    } else {
-        // 처음 실행: 장치 목록 없이 즉시 후면 카메라(또는 기본 카메라) 요청
-        constraints = {
-            video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 } },
-            audio: false
-        };
+        activeCam = state.cameras[state.activeCameraIndex];
     }
 
-    try {
-        state.stream = await navigator.mediaDevices.getUserMedia(constraints);
+    // 시도할 해상도 순서: 4K (3840x2160) -> FHD (1920x1080) -> HD (1280x720)
+    const resolutions = [
+        { width: 3840, height: 2160 },
+        { width: 1920, height: 1080 },
+        { width: 1280, height: 720 }
+    ];
 
-        // 밝기 필터 즉각 보정 실행 (기본 1.50배)
-        applyBrightness();
+    let success = false;
 
-        // 가로 화면인데 비디오 스트림이 세로로 왜곡되어 들어오는 경우 자동 90도 회전 설정
-        const activeTrack = state.stream.getVideoTracks()[0];
-        if (activeTrack) {
-            // 회전 값 결정 (저장된 값 우선, 없으면 가로 모드 기본 90도 또는 세로 해상도 대응)
-            const trackLabel = activeTrack.label || 'default';
-            const savedRotation = localStorage.getItem(`rotation_${trackLabel}`);
-            if (savedRotation !== null) {
-                state.rotation = parseInt(savedRotation, 10);
+    // 1. 특정 해상도들로 순차적 시도
+    for (const res of resolutions) {
+        try {
+            let videoConstraint = {};
+            if (activeCam) {
+                videoConstraint.deviceId = { exact: activeCam.deviceId };
             } else {
-                const settings = activeTrack.getSettings();
-                if (window.innerWidth > window.innerHeight) {
-                    // 가로 화면인데 물체가 세로로 누워 보이는 문제 해결을 위해 기본 회전 각도를 90도로 자동 보정
-                    state.rotation = 90;
-                } else if (settings.width < settings.height) {
-                    state.rotation = 90;
-                } else {
-                    state.rotation = 0;
-                }
+                videoConstraint.facingMode = { ideal: 'environment' };
             }
-            applyRotationAndZoom();
-        }
+            videoConstraint.width = { ideal: res.width };
+            videoConstraint.height = { ideal: res.height };
 
-        // srcObject 할당 후 즉시 play() - onloadedmetadata 이벤트 대기 없이 바로 실행
-        videoStream.srcObject = state.stream;
-        videoStream.play().catch(err => console.warn("play() 자동실행 경고 (무시 가능):", err));
-
-        // --- 2단계: 카메라가 켜진 후 백그라운드에서 장치 목록 탐색 ---
-        // 처음 실행이거나 목록이 비어 있으면 비동기로 장치 목록 갱신
-        if (state.cameras.length === 0) {
-            enumerateCameraDevices().then(() => {
-                // 탐색된 목록에서 현재 활성 스트림과 일치하는 카메라 인덱스 설정
-                const activeTrack = state.stream && state.stream.getVideoTracks()[0];
-                if (activeTrack && state.cameras.length > 0) {
-                    const settings = activeTrack.getSettings();
-                    const matchIdx = state.cameras.findIndex(c => c.deviceId === settings.deviceId);
-                    if (matchIdx >= 0) state.activeCameraIndex = matchIdx;
-                }
+            console.log(`카메라 스트림 시도 중 (${res.width}x${res.height})...`);
+            state.stream = await navigator.mediaDevices.getUserMedia({
+                video: videoConstraint,
+                audio: false
             });
-        }
-
-        console.log("카메라 활성화 성공");
-    } catch (err) {
-        console.error("카메라 구동 실패:", err);
-        // 특정 deviceId 실패 시 기본 video:true 로 재시도
-        if (constraints.video.deviceId) {
-            console.log("기본 방식으로 재시도합니다...");
-            try {
-                state.stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: { ideal: 3840 }, height: { ideal: 2160 } }, 
-                    audio: false 
-                });
-                
-                // 밝기 필터 즉각 보정 실행
-                applyBrightness();
-
-                const activeTrack = state.stream.getVideoTracks()[0];
-                if (activeTrack) {
-                    const trackLabel = activeTrack.label || 'default';
-                    const savedRotation = localStorage.getItem(`rotation_${trackLabel}`);
-                    if (savedRotation !== null) {
-                        state.rotation = parseInt(savedRotation, 10);
-                    } else {
-                        const settings = activeTrack.getSettings();
-                        if (window.innerWidth > window.innerHeight) {
-                            state.rotation = 90;
-                        } else if (settings.width < settings.height) {
-                            state.rotation = 90;
-                        } else {
-                            state.rotation = 0;
-                        }
-                    }
-                    applyRotationAndZoom();
-                }
-
-                videoStream.srcObject = state.stream;
-                videoStream.play().catch(e => console.warn(e));
-            } catch (fallbackErr) {
-                showNotification("카메라에 연결할 수 없습니다. 권한 설정 또는 다른 앱의 카메라 점유 여부를 확인해 주세요.");
-            }
-        } else {
-            showNotification("카메라에 연결할 수 없습니다. 권한 설정 또는 다른 앱의 카메라 점유 여부를 확인해 주세요.");
+            success = true;
+            console.log(`성공한 해상도: ${res.width}x${res.height}`);
+            break;
+        } catch (err) {
+            console.warn(`${res.width}x${res.height} 해상도 시도 실패:`, err);
         }
     }
+
+    // 2. 모든 고해상도가 실패할 경우 기본 video: true 로 최종 시도
+    if (!success) {
+        try {
+            let videoConstraint = {};
+            if (activeCam) {
+                videoConstraint.deviceId = { exact: activeCam.deviceId };
+            } else {
+                videoConstraint.facingMode = { ideal: 'environment' };
+            }
+            console.log("기본 해상도로 최종 시도 중...");
+            state.stream = await navigator.mediaDevices.getUserMedia({
+                video: Object.keys(videoConstraint).length > 0 ? videoConstraint : true,
+                audio: false
+            });
+            success = true;
+        } catch (fallbackErr) {
+            console.error("모든 카메라 연결 시도 실패:", fallbackErr);
+            showNotification("카메라에 연결할 수 없습니다. 권한 설정 또는 다른 앱의 카메라 점유 여부를 확인해 주세요.");
+            return;
+        }
+    }
+
+    // 밝기 필터 즉각 보정 실행
+    applyBrightness();
+
+    // 가로 화면인데 비디오 스트림이 세로로 왜곡되어 들어오는 경우 자동 90도 회전 설정
+    const activeTrack = state.stream.getVideoTracks()[0];
+    if (activeTrack) {
+        // 회전 값 결정 (저장된 값 우선, 없으면 가로 모드 기본 90도 또는 세로 해상도 대응)
+        const trackLabel = activeTrack.label || 'default';
+        const savedRotation = localStorage.getItem(`rotation_${trackLabel}`);
+        if (savedRotation !== null) {
+            state.rotation = parseInt(savedRotation, 10);
+        } else {
+            const settings = activeTrack.getSettings();
+            if (window.innerWidth > window.innerHeight) {
+                // 가로 화면인데 물체가 세로로 누워 보이는 문제 해결을 위해 기본 회전 각도를 90도로 자동 보정
+                state.rotation = 90;
+            } else if (settings.width < settings.height) {
+                state.rotation = 90;
+            } else {
+                state.rotation = 0;
+            }
+        }
+        applyRotationAndZoom();
+    }
+
+    // srcObject 할당 후 즉시 play() - onloadedmetadata 이벤트 대기 없이 바로 실행
+    videoStream.srcObject = state.stream;
+    videoStream.play().catch(err => console.warn("play() 자동실행 경고 (무시 가능):", err));
+
+    // --- 2단계: 카메라가 켜진 후 백그라운드에서 장치 목록 탐색 ---
+    // 처음 실행이거나 목록이 비어 있으면 비동기로 장치 목록 갱신
+    if (state.cameras.length === 0) {
+        enumerateCameraDevices().then(() => {
+            // 탐색된 목록에서 현재 활성 스트림과 일치하는 카메라 인덱스 설정
+            const activeTrack = state.stream && state.stream.getVideoTracks()[0];
+            if (activeTrack && state.cameras.length > 0) {
+                const settings = activeTrack.getSettings();
+                const matchIdx = state.cameras.findIndex(c => c.deviceId === settings.deviceId);
+                if (matchIdx >= 0) state.activeCameraIndex = matchIdx;
+            }
+        });
+    }
+
+    console.log("카메라 활성화 성공");
 }
 
 // 다음 장치로 카메라 전환
