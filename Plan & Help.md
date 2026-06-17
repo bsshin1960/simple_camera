@@ -81,6 +81,13 @@
 - 영구 접속 주소: **https://bsshin1960.github.io/simple_camera/**
 - PC가 꺼져 있어도 언제든 접속 가능, URL 변경 없음
 
+### v2.6 – 모바일 호환성 개선 및 디버그 모니터 탑재 (최신)
+- **자동 재생 정책 차단 우회**: 모바일 브라우저의 재생 락을 풀기 위해 화면 터치/클릭 시 비디오 멈춤 여부를 체크하여 `play()` 강제 재트리거
+- **카메라 연결 안정성 극대화**: OverconstrainedError를 일으키는 4K 해상도를 배제하고 FHD -> HD 순으로 요청. 특정 디바이스 전환 실패 시 ideal 매칭 및 최종 `video: true`로 떨어지는 다단계 Fallback 구축
+- **온스크린 디버그 모니터**: 화면 빈 영역을 **빠르게 5회 연속 탭**하면 작동하는 개발자용 실시간 콘솔 패널 구현
+- **원터치 앱 초기화**: 디버그 패널 내 **[캐시초기화]** 버튼으로 서비스 워커 등록 취소(Unregister) 및 브라우저 캐시 전면 삭감 후 강제 리로드 지원
+- **PWA 오프라인 쿼리 지원**: 쿼리스트링(`?v=...`) 버전 파라미터가 들어가도 오프라인 캐시를 매칭하도록 `sw.js`에 `ignoreSearch: true` 적용
+
 ---
 
 ## 3. 파일 구성 (File Structure)
@@ -209,22 +216,30 @@ ssh -o StrictHostKeyChecking=no -R 80:localhost:8000 nokey@localhost.run
 *::-webkit-scrollbar { display: none; }
 ```
 
-### JS 카메라 빠른 시작 구조
+### JS 카메라 시작 및 Fallback 구조 (v2.6)
 ```javascript
 async function startCamera() {
-    // 장치 목록 탐색 없이 즉시 스트림 요청
-    const constraints = {
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false
-    };
-    state.stream = await navigator.mediaDevices.getUserMedia(constraints);
+    // 1. FHD -> HD 순차적getUserMedia 시도
+    for (const res of resolutions) {
+        try {
+            state.stream = await navigator.mediaDevices.getUserMedia({
+                video: { deviceId: { exact: activeCam.deviceId }, width: { ideal: res.width }, height: { ideal: res.height } }
+            });
+            break;
+        } catch (err) {
+            // 실패 시 exact를 해제하고 ideal 디바이스 매칭 fallback 시도
+        }
+    }
+    
+    // 2. 고해상도 실패 시 facingMode: 'environment' -> video: true 최종 Fallback
+    if (!success) {
+        state.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .catch(() => navigator.mediaDevices.getUserMedia({ video: true }));
+    }
 
-    // 이벤트 대기 없이 즉시 play()
+    // 3. 비디오 강제 재생 및 모바일 자동재생 정책 대응
     videoStream.srcObject = state.stream;
-    videoStream.play();
-
-    // 백그라운드에서 장치 목록 갱신 (병렬)
-    enumerateCameraDevices();
+    videoStream.play().catch(err => showNotification("탭하여 재생 가능"));
 }
 ```
 
