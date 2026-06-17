@@ -1,4 +1,4 @@
-const CACHE_NAME = 'camera-app-v15'; // 버전을 v15으로 올려 이전 캐시 갱신 유도
+const CACHE_NAME = 'camera-app-v16_debug'; // 버전을 올려 이전 캐시 갱신 유도
 const ASSETS = [
     './',
     './index.html',
@@ -49,8 +49,8 @@ self.addEventListener('fetch', (e) => {
                 return response;
             })
             .catch(() => {
-                // 오프라인이거나 네트워크 오류 시 캐시에서 반환
-                return caches.match(e.request);
+                // 오프라인이거나 네트워크 오류 시 캐시에서 반환 (쿼리 파라미터 무시하고 검색)
+                return caches.match(e.request, { ignoreSearch: true });
             })
     );
 });

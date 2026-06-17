@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>심플 카메라 제어기</title>
-    <link rel="stylesheet" href="style.css?v=20260617f">
+    <link rel="stylesheet" href="style.css?v=20260617_debug">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -80,6 +80,18 @@
         </div>
     </div>
 
-    <script src="app.js?v=20260617f"></script>
+    <!-- 온스크린 디버그 콘솔 오버레이 -->
+    <div id="debug-overlay" class="debug-overlay hidden">
+        <div class="debug-header">
+            <h3>디버그 로그 모니터</h3>
+            <div class="debug-header-btns">
+                <button id="btn-clear-cache" class="debug-action-btn warning">캐시초기화</button>
+                <button id="btn-close-debug" class="debug-action-btn">닫기</button>
+            </div>
+        </div>
+        <div id="debug-log-list" class="debug-log-list"></div>
+    </div>
+
+    <script src="app.js?v=20260617_debug"></script>
 </body>
 </html>

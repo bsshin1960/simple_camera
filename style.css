@@ -101,6 +101,8 @@ body {
     height: calc(100dvh - 120px);
     aspect-ratio: 9 / 16;
     max-width: 95vw;
+    min-height: 200px; /* 초기 렌더링 시 레이아웃 붕괴 방지 */
+    min-width: 112px;
     border: 2px solid rgba(255, 255, 255, 0.25);
     border-radius: 16px;
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7);
@@ -329,4 +331,100 @@ body {
         max-width: 90vw;
     }
 }
+
+/* 온스크린 디버그 오버레이 스타일 */
+.debug-overlay {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    background: rgba(10, 15, 20, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+}
+
+.debug-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+}
+
+.debug-header h3 {
+    font-size: 0.9rem;
+    color: #07c160;
+    margin: 0;
+}
+
+.debug-header-btns {
+    display: flex;
+    gap: 8px;
+}
+
+.debug-action-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #eee;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.debug-action-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.debug-action-btn.warning {
+    background: rgba(220, 53, 69, 0.3);
+    border-color: rgba(220, 53, 69, 0.5);
+    color: #ff8080;
+}
+
+.debug-action-btn.warning:hover {
+    background: rgba(220, 53, 69, 0.5);
+}
+
+.debug-log-list {
+    flex: 1;
+    overflow-y: auto;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: #a0ffa0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    background: #000;
+    padding: 8px;
+    border-radius: 6px;
+}
+
+.debug-log-item {
+    margin-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 4px;
+}
+
+.debug-log-item.error {
+    color: #ff6060;
+}
+
+.debug-log-item.warn {
+    color: #ffc060;
+}
+
+.debug-log-item.info {
+    color: #60c0ff;
+}
+
 
