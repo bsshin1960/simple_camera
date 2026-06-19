@@ -139,7 +139,7 @@ body {
     display: block;
     transform-origin: center center;
     transition: transform 0.1s ease-out;
-    filter: brightness(1.44) contrast(1.05); /* 카메라 비디오 프리뷰 기본 밝기를 1.44배로 설정 (기존 1.8배 대비 20% 감소) */
+    filter: brightness(1.15) contrast(1.05); /* 카메라 비디오 프리뷰 기본 밝기를 1.15배로 설정 (기존 1.44배 대비 20% 감소) */
 }
 
 /* 화면 전체 기준 반투명 컨트롤러 */
