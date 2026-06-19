@@ -44,7 +44,7 @@ const state = {
     stream: null,
     zoom: 1.0,
     rotation: 0,          // 회전 각도 (0, 90, 180, 270)
-    brightness: 1.8,      // 기본 밝기 배율 (1.8x - 기존 2.25x 대비 20% 감소)
+    brightness: 1.44,     // 기본 밝기 배율 (1.44x - 기존 1.8x 대비 20% 감소)
     isFullScreen: false,
     controlsTimer: null,
     cameras: [],          // 탐색된 카메라 기기 목록
@@ -677,7 +677,7 @@ if (document.readyState === 'loading') {
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 서비스 워커에도 버전 파라미터를 추가하여 브라우저의 서비스 워커 파일 자체의 캐시 꼬임 방지
-        navigator.serviceWorker.register('./sw.js?v=20260617_debug')
+        navigator.serviceWorker.register('./sw.js?v=20260619_bright_reduced')
             .then(reg => {
                 console.log('서비스 워커 등록 성공:', reg.scope);
                 // 새 서비스 워커 업데이트가 감지되었을 때 로그
