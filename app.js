@@ -677,7 +677,7 @@ if (document.readyState === 'loading') {
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 서비스 워커에도 버전 파라미터를 추가하여 브라우저의 서비스 워커 파일 자체의 캐시 꼬임 방지
-        navigator.serviceWorker.register('./sw.js?v=20260625_layout_v2')
+        navigator.serviceWorker.register('./sw.js?v=20260625_layout_v3')
             .then(reg => {
                 console.log('서비스 워커 등록 성공:', reg.scope);
                 // 새 서비스 워커 업데이트가 감지되었을 때 로그
