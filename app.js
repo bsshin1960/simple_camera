@@ -48,6 +48,7 @@ const state = {
     isFullScreen: true,   // 처음 실행 시 최대 화면을 디폴트로 설정
     controlsTimer: null,
     isTouch: false,       // 터치(모바일) 기기 여부 플래그
+    lastTouchTime: 0,     // 마지막 터치 타임스탬프 (가상 마우스 이벤트 필터용)
     cameras: [],          // 탐색된 카메라 기기 목록
     activeCameraIndex: 0, // 현재 활성화된 카메라 인덱스
     debugClicks: 0,       // 디버그 활성화를 위한 클릭 횟수
@@ -579,11 +580,19 @@ function setupEvents() {
     // 4. 커서/터치 반응형 제어 및 자동재생 정책 대응
     if (appContainer) {
         appContainer.addEventListener('mousemove', () => {
+            // 최근에 터치 이벤트가 발생한 경우(1초 이내) 모바일 브라우저의 가상 마우스 이벤트이므로 무시
+            if (Date.now() - state.lastTouchTime < 1000) {
+                return;
+            }
             state.isTouch = false; // 마우스 움직임이 있을 때는 touch 모드 해제
             showControlsTemporarily();
         });
 
         appContainer.addEventListener('mouseenter', () => {
+            // 최근에 터치 이벤트가 발생한 경우(1초 이내) 가상 마우스 이벤트이므로 무시
+            if (Date.now() - state.lastTouchTime < 1000) {
+                return;
+            }
             state.isTouch = false; // 마우스 진입 시 touch 모드 해제
             showControlsTemporarily();
         });
@@ -598,6 +607,7 @@ function setupEvents() {
         // 모바일 터치 및 자동재생 복구 트리거
         appContainer.addEventListener('touchstart', () => {
             state.isTouch = true; // 터치 발생 시 touch 모드 활성화
+            state.lastTouchTime = Date.now(); // 터치 발생 시간 기록
             showControlsTemporarily();
             
             // 모바일 오토플레이 방지 해제 대응 (멈춰있다면 탭으로 강제 재생)
@@ -609,6 +619,7 @@ function setupEvents() {
 
         appContainer.addEventListener('touchmove', () => {
             state.isTouch = true; // 터치 스크롤 등에서도 touch 모드 유지
+            state.lastTouchTime = Date.now(); // 터치 시간 갱신
             showControlsTemporarily();
         }, { passive: true });
 
@@ -689,7 +700,7 @@ if (document.readyState === 'loading') {
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 서비스 워커에도 버전 파라미터를 추가하여 브라우저의 서비스 워커 파일 자체의 캐시 꼬임 방지
-        navigator.serviceWorker.register('./sw.js?v=20260625_layout_v5')
+        navigator.serviceWorker.register('./sw.js?v=20260625_layout_v6')
             .then(reg => {
                 console.log('서비스 워커 등록 성공:', reg.scope);
                 // 새 서비스 워커 업데이트가 감지되었을 때 로그
