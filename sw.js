@@ -1,4 +1,4 @@
-const CACHE_NAME = 'camera-app-v22_transparent'; // 버전을 올려 이전 캐시 갱신 유도
+const CACHE_NAME = 'camera-app-v23_hover'; // 버전을 올려 이전 캐시 갱신 유도
 const ASSETS = [
     './',
     './index.html',
