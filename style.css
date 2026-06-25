@@ -155,6 +155,13 @@ body {
     transition: opacity 0.3s ease-in-out;
 }
 
+/* 최대화면 모드일 때 컨트롤러도 fixed로 격상시켜 z-index 오버레이 보장 */
+.app-container.full-mode .floating-controls {
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+}
+
 /* 활성화 상태 (전체 화면 영역에 마우스/터치 진입 시 노출) */
 .show-controls .floating-controls {
     opacity: 1;
