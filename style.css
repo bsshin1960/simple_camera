@@ -170,13 +170,13 @@ body {
     flex-shrink: 0;
 }
 
-/* 플로팅 버튼 공통 스타일 (기존 44px에서 약 30% 축소하여 31px 적용) */
+/* 플로팅 버튼 공통 스타일 (크기 대폭 축소 및 테두리 제거) */
 .floating-btn {
     background: rgba(0, 0, 0, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: none; /* 테두리 삭제 */
     color: rgba(255, 255, 255, 0.9);
-    width: 31px;
-    height: 31px;
+    width: 24px;  /* 31px에서 24px로 축소 */
+    height: 24px; /* 31px에서 24px로 축소 */
     border-radius: 50%;
     cursor: pointer;
     display: flex;
@@ -188,98 +188,99 @@ body {
 
 .floating-btn:hover {
     background: rgba(0, 0, 0, 0.9);
-    border-color: rgba(255, 255, 255, 0.7);
     color: #fff;
-    transform: scale(1.05);
+    transform: scale(1.1);
 }
 
-/* 아이콘 크기 (기존 20px에서 30% 축소하여 14px 적용) */
+/* 아이콘 크기 (최대한 축소) */
 .icon {
-    width: 14px;
-    height: 14px;
+    width: 11px;  /* 14px에서 11px로 축소 */
+    height: 11px; /* 14px에서 11px로 축소 */
 }
 
 .hidden {
     display: none !important;
 }
 
-/* 화면 가장 하단에 배치될 반투명 통합 컨트롤 카드 */
+/* 화면 가장 하단에 배치될 반투명 통합 컨트롤 카드 (테두리 제거 및 컴팩트 스타일) */
 .controls-card {
     position: absolute;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
     width: 95%;
-    max-width: 420px;
+    max-width: 480px;
     background: rgba(0, 0, 0, 0.7);
-    padding: 14px;
-    border-radius: 24px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 6px 12px; /* 세로/가로 패딩 대폭 축소 */
+    border-radius: 18px; /* 컴팩트해진 크기에 맞게 라운드 조절 */
+    border: none; /* 테두리 삭제 */
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
     gap: 12px;
     backdrop-filter: blur(10px);
     pointer-events: auto;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     transition: opacity 0.3s ease-in-out;
 }
 
 .control-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    width: 100%;
+    gap: 8px;
+    flex: 1;
 }
 
 .slider-label {
-    font-size: 0.7rem;
+    font-size: 0.6rem;
     font-weight: bold;
     color: rgba(255, 255, 255, 0.5);
     letter-spacing: 0.5px;
-    min-width: 55px;
+    min-width: 32px; /* 38px에서 32px로 축소 */
 }
 
 .badge {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     font-weight: bold;
     color: #07c160;
-    min-width: 45px;
+    min-width: 30px; /* 35px에서 30px로 축소 */
     text-align: right;
 }
 
-.controls-card-divider {
-    width: 100%;
-    height: 1px;
+.controls-card-divider-vertical {
+    width: 1px;
+    height: 12px; /* 컴팩트 사이즈에 맞게 세로 길이 축소 */
     background: rgba(255, 255, 255, 0.15);
-    margin: 2px 0;
+    flex-shrink: 0;
 }
 
 .button-group {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 20px;
-    width: 100%;
+    justify-content: flex-end;
+    gap: 8px; /* 간격 대폭 축소 */
+    flex-shrink: 0;
 }
 
-/* 슬라이더 인풋 커스텀 */
+/* 슬라이더 인풋 커스텀 (두께 최대한 축소) */
 .slider-input {
     -webkit-appearance: none;
     flex: 1;
-    height: 4px;
+    height: 2px; /* 4px에서 2px로 축소 */
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 2px;
+    border-radius: 1px;
     outline: none;
 }
 
 .slider-input::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
+    width: 10px;  /* 18px에서 10px로 축소 */
+    height: 10px; /* 18px에서 10px로 축소 */
     border-radius: 50%;
-    background: #07c160; /* 녹색 포인트 */
+    background: #07c160;
     cursor: pointer;
-    box-shadow: 0 0 8px rgba(7, 193, 96, 0.6);
+    box-shadow: 0 0 4px rgba(7, 193, 96, 0.6);
     transition: transform 0.1s;
 }
 

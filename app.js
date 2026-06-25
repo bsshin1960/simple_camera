@@ -45,7 +45,7 @@ const state = {
     zoom: 1.0,
     rotation: 0,          // 회전 각도 (0, 90, 180, 270)
     brightness: 1.3,      // 기본 밝기 배율 (1.3x)
-    isFullScreen: false,
+    isFullScreen: true,   // 처음 실행 시 최대 화면을 디폴트로 설정
     controlsTimer: null,
     cameras: [],          // 탐색된 카메라 기기 목록
     activeCameraIndex: 0, // 현재 활성화된 카메라 인덱스
@@ -650,9 +650,9 @@ function setupEvents() {
 
 // 앱 초기화
 function init() {
-    // 초기 아이콘 상태 정렬
-    iconExpand.classList.remove('hidden');
-    iconCollapse.classList.add('hidden');
+    // 초기 아이콘 상태 정렬 (최대 화면 디폴트에 맞게 축소 아이콘 노출, 확대 아이콘 숨김)
+    iconCollapse.classList.remove('hidden');
+    iconExpand.classList.add('hidden');
 
     console.log("심플 카메라 제어기 초기화 시작");
 
@@ -677,7 +677,7 @@ if (document.readyState === 'loading') {
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 서비스 워커에도 버전 파라미터를 추가하여 브라우저의 서비스 워커 파일 자체의 캐시 꼬임 방지
-        navigator.serviceWorker.register('./sw.js?v=20260619_bright_1.3')
+        navigator.serviceWorker.register('./sw.js?v=20260625_layout_v2')
             .then(reg => {
                 console.log('서비스 워커 등록 성공:', reg.scope);
                 // 새 서비스 워커 업데이트가 감지되었을 때 로그

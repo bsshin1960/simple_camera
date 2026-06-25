@@ -12,11 +12,11 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>심플 카메라 제어기</title>
-    <link rel="stylesheet" href="style.css?v=20260619_bright_1.3">
+    <link rel="stylesheet" href="style.css?v=20260625_layout_v2">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
-    <div class="app-container" id="app-container">
+    <div class="app-container full-mode" id="app-container">
         <!-- 메인 피드 영역 -->
         <main class="main-content">
             <!-- 문제로 가득 찬 배경 영역 -->
@@ -24,8 +24,8 @@
                 <!-- Javascript로 문제가 채워집니다 -->
             </div>
 
-            <!-- 카메라 비디오 박스 -->
-            <div id="camera-box" class="camera-box medium-mode">
+            <!-- 카메라 비디오 박스 (최대 화면 디폴트) -->
+            <div id="camera-box" class="camera-box full-mode">
                 <div class="video-wrapper">
                     <video id="video-stream" autoplay playsinline muted></video>
                 </div>
@@ -34,19 +34,19 @@
 
         <!-- 화면 전체 기준 반투명 컨트롤러 (화면에 커서가 있을 때 표출) -->
         <div id="floating-controls" class="floating-controls">
-            <!-- 화면 가장 하단에 배치될 반투명 통합 컨트롤 카드 (슬라이더 행들 + 버튼들) -->
+            <!-- 화면 가장 하단에 배치될 반투명 통합 컨트롤 카드 (슬라이더와 아이콘이 가로로 배치됨) -->
              <div class="controls-card">
-                 <!-- 줌 조절 행 -->
+                 <!-- 줌 조절 행 (왼쪽) -->
                  <div class="control-row">
                      <span class="slider-label">ZOOM</span>
                      <input type="range" id="zoom-slider" class="slider-input" min="1" max="4" step="0.1" value="1" title="확대/축소">
                      <span id="zoom-badge" class="badge">1.0x</span>
                  </div>
                  
-                 <!-- 구분선 -->
-                 <div class="controls-card-divider"></div>
+                 <!-- 수직 구분선 -->
+                 <div class="controls-card-divider-vertical"></div>
                  
-                 <!-- 버튼 그룹 -->
+                 <!-- 버튼 그룹 (오른쪽) -->
                  <div class="button-group">
                      <!-- 카메라 기기 전환 버튼 -->
                      <button id="btn-switch-camera" class="floating-btn" title="카메라 전환">
@@ -66,14 +66,14 @@
                      
                      <!-- 화면 크기 전환 버튼 -->
                      <button id="btn-toggle-screen" class="floating-btn" title="화면 크기 전환">
-                         <!-- 축소 아이콘 -->
-                         <svg id="icon-collapse" class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                             <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"/>
-                         </svg>
-                         <!-- 확대 아이콘 (기본값) -->
-                         <svg id="icon-expand" class="icon hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-                         </svg>
+                          <!-- 축소 아이콘 (기본 최대화면이므로 축소 아이콘 노출) -->
+                          <svg id="icon-collapse" class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"/>
+                          </svg>
+                          <!-- 확대 아이콘 (숨김) -->
+                          <svg id="icon-expand" class="icon hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                          </svg>
                      </button>
                  </div>
              </div>
@@ -92,6 +92,6 @@
         <div id="debug-log-list" class="debug-log-list"></div>
     </div>
 
-    <script src="app.js?v=20260619_bright_1.3"></script>
+    <script src="app.js?v=20260625_layout_v2"></script>
 </body>
 </html>
